@@ -512,6 +512,8 @@ Check stack details
   --region us-east-1
 ```
 
+![vpcstack](image/aws2.PNG)
+
  ### STEP 2: Create the EKS Cluster
 
 Create eks-cluster.yaml
@@ -606,6 +608,7 @@ aws iam get-role --role-name EKSNodeRole
 Copy the Arn field (it will look like arn:aws:iam::707913648704:role/EKSNodeRole)
 
 **4 Create Node Group with correct ARN**
+![nodecreation](image/node%201.PNG)
 
 ```
 aws eks create-nodegroup \
@@ -620,6 +623,7 @@ aws eks create-nodegroup \
 ```
 
 Check node group status:
+![checkstatus](image/node%203.PNG)
 
 ```
 aws eks describe-nodegroup \
@@ -636,6 +640,7 @@ Then run:
   ```
   kubectl apply -k overlays/dev/
 ```
+![node](image/node2.PNG)
 Notes:
 
 - Cluster creation may take 10–15 minutes
