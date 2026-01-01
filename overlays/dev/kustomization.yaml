@@ -1,2 +1,28 @@
 resources:
   - ../../base
+
+patches:
+  - path: replica_count.yaml
+    target:
+      kind: Deployment
+      name: nginx-deployment
+
+namePrefix: dev-
+namespace: dev
+
+commonLabels:
+  environment: dev
+
+images:
+  - name: nginx
+    newTag: "1.25"
+configMapGenerator:
+  - name: app-config
+    literals:
+      - APP_ENV=development
+      - APP_DEBUG=true
+
+secretGenerator:
+  - name: db-secret
+    literals:
+      - DB_USER=admin

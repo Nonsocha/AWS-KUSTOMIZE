@@ -709,3 +709,273 @@ This command lists:
 - ReplicaSets
 
 You should see the resources defined in your Kustomize base and overlays.
+
+### 3 Working with overlays:
+
+### Creating Environment-Specific Directories
+
+In your project’s overlays directory, create a subdirectory for each environment.
+
+  ```
+    mkdir -p overlays/{dev,staging,prod}
+  ```
+
+  **Setting Up Environment Configurations**
+
+Each environment has its own kustomization.yaml file to define environment-specific customizations.
+
+### Development Overlay
+
+overlays/dev/kustomization.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: db-secret
+```
+
+base/kustomization.yaml
+
+```
+ resources:
+  - deployment.yaml
+```
+
+**Overlays (Environment-Specific)**
+
+**Development Environment**
+overlays/dev/kustomization.yaml
+
+```
+  resources:
+  - ../../base
+
+patches:
+  - path: replica_count.yaml
+    target:
+      kind: Deployment
+      name: nginx-deployment
+
+namePrefix: dev-
+namespace: dev
+
+commonLabels:
+  environment: dev
+
+images:
+  - name: nginx
+    newTag: 1.25
+
+configMapGenerator:
+  - name: app-config
+    literals:
+      - APP_ENV=development
+      - APP_DEBUG=true
+
+secretGenerator:
+  - name: db-secret
+    literals:
+      - DB_USER=admin
+      - DB_PASSWORD=devpassword
+```
+
+overlays/dev/replica_count.yaml
+
+```
+ apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 1
+```
+
+**Staging Environment**
+
+overlays/staging/kustomization.yaml
+
+```
+  resources:
+  - ../../base
+
+patches:
+  - path: replica_count.yaml
+    target:
+      kind: Deployment
+      name: nginx-deployment
+
+namePrefix: staging-
+namespace: staging
+
+commonLabels:
+  environment: staging
+
+images:
+  - name: nginx
+    newTag: 1.25
+
+configMapGenerator:
+  - name: app-config
+    literals:
+      - APP_ENV=staging
+      - APP_DEBUG=false
+```
+
+overlays/staging/replica_count.yaml
+
+```
+ apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 2
+```
+
+**Production Environment**
+
+overlays/prod/kustomization.yaml
+
+```
+ resources:
+  - ../../base
+
+patches:
+  - path: replica_count.yaml
+    target:
+      kind: Deployment
+      name: nginx-deployment
+
+namePrefix: prod-
+namespace: prod
+
+commonLabels:
+  environment: production
+  tier: backend
+
+images:
+  - name: nginx
+    newTag: 1.25
+
+secretGenerator:
+  - name: db-secret
+    literals:
+      - DB_USER=admin
+      - DB_PASSWORD=strongpassword
+```
+
+overlays/prod/replica_count.yaml
+
+```
+  apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 4
+```
+
+**Build & Apply**
+
+Create namespaces (once)
+
+```
+kubectl create namespace dev
+kubectl create namespace staging
+kubectl create namespace prod
+```
+
+![apply](image/apply.PNG)
+
+
+**Deploy environments**
+
+```
+ kubectl apply -k overlays/dev
+kubectl apply -k overlays/staging
+kubectl apply -k overlays/prod
+```
+![deployment1](image/deploy1.PNG)
+![deployment2](image/deploy2.PNG)
+
+### Lesson 3.3: Secret and ConfigMap Management
+**Objective**
+
+Effectively manage configuration data and secrets in Kubernetes using Kustomize generators, while keeping the base clean and reusable.
+
+**Key Principle (Very Important)**
+
+Base defines how configuration is consumed
+Overlays define what the configuration values are
+
+- ConfigMaps & Secrets are environment-specific
+
+- They should be generated in overlays, not the base
+
+- The base only contains references (envFrom, configMapRef, secretRef)
+
+**1 Generating a ConfigMap**
+
+ConfigMaps are used to store non-sensitive configuration data such as environment names, feature flags, and log levels.
+
+**Development ConfigMap (Overlay)**
+
+overlays/dev/kustomization.yaml
+
+```
+ configMapGenerator:
+  - name: app-config
+    literals:
+      - APP_ENV=development
+      - APP_DEBUG=true
+```
+
+Creating Secrets Safely
+
+Secrets store sensitive data such as passwords, tokens, and API keys.
+
+### Secret Generator (Overlay)
+
+**overlays/dev/kustomization.yaml**
+
+```
+secretGenerator:
+  - name: db-secret
+    literals:
+      - DB_USER=admin
+      - DB_PASSWORD=devpassword
+```
+
+- Values are base64-encoded automatically
+- Secret name is hashed
+- Safe for development and learning
+
+Note: Base64 encoding ≠ encryption
+
+```
+ kubectl apply -k overlays/dev
+```
+
+![config](image/config.PNG)
+
